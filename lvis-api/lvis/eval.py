@@ -317,7 +317,10 @@ class LVISEval:
         olrp_fn = -np.ones((num_cats, num_area_rngs))
         olrp = -np.ones((num_cats, num_area_rngs))
         lrp_opt_thr = -np.ones((num_cats, num_area_rngs))
-
+        _lrps = {}
+        _dt_scores = {}
+        _tps = {}
+        _fps = {}
         # Initialize dt_pointers
         dt_pointers = {}
         for cat_idx in range(num_cats):
@@ -413,6 +416,7 @@ class LVISEval:
 
                 # oLRP and Opt.Thr. Computation
                 tp_num = np.cumsum(tps[0, :])
+                # print(f"Shape of tp_num: {tp_num.shape}")
                 fp_num = np.cumsum(fps[0, :])
                 fn_num = num_gt - tp_num
                 # If there is detection
@@ -420,19 +424,24 @@ class LVISEval:
                     # There is some TPs
                     if tp_num[-1] > 0:
                         total_loc = tp_num - np.cumsum(dt_iou[0, :])
-                        lrps = (total_loc / (1 - self.params.iou_thrs[0]) +
-                                fp_num + fn_num) / (tp_num + fp_num + fn_num)
+                        lrps = (total_loc / (1 - self.params.iou_thrs[0]) + fp_num + fn_num) / (tp_num + fp_num + fn_num)
+                        _lrps[cat_idx, area_idx] = lrps
+                        _dt_scores[cat_idx, area_idx] = dt_scores
+                        _tps[cat_idx, area_idx] = tps
+                        _fps[cat_idx, area_idx] = fps
+                        # print(f"Shape of lrps: {lrps.shape}")
                         opt_pos_idx = np.argmin(lrps)
                         olrp[cat_idx, area_idx] = lrps[opt_pos_idx]
-                        olrp_loc[cat_idx, area_idx] = total_loc[opt_pos_idx] /\
-                            tp_num[opt_pos_idx]
-                        olrp_fp[cat_idx, area_idx] = fp_num[opt_pos_idx] / \
-                            (tp_num[opt_pos_idx] + fp_num[opt_pos_idx])
-                        olrp_fn[cat_idx,
-                                area_idx] = fn_num[opt_pos_idx] / num_gt
+                        olrp_loc[cat_idx, area_idx] = total_loc[opt_pos_idx] / tp_num[opt_pos_idx]
+                        olrp_fp[cat_idx, area_idx] = fp_num[opt_pos_idx] / (tp_num[opt_pos_idx] + fp_num[opt_pos_idx])
+                        olrp_fn[cat_idx,area_idx] = fn_num[opt_pos_idx] / num_gt
                         lrp_opt_thr[cat_idx, area_idx] = dt_scores[opt_pos_idx]
                     # There is No TP
                     else:
+                        _lrps[cat_idx, area_idx] = None
+                        _dt_scores[cat_idx, area_idx] = None
+                        _tps[cat_idx, area_idx] = None
+                        _fps[cat_idx, area_idx] = None
                         olrp_loc[cat_idx, area_idx] = np.nan
                         olrp_fp[cat_idx, area_idx] = np.nan
                         olrp_fn[cat_idx, area_idx] = 1.
@@ -445,6 +454,10 @@ class LVISEval:
                     olrp_fn[cat_idx, area_idx] = 1.
                     olrp[cat_idx, area_idx] = 1.
                     lrp_opt_thr[cat_idx, area_idx] = np.nan
+                    _lrps[cat_idx, area_idx] = None
+                    _dt_scores[cat_idx, area_idx] = None
+                    _tps[cat_idx, area_idx] = None
+                    _fps[cat_idx, area_idx] = None
         self.eval = {
             "params": self.params,
             "counts": [num_thrs, num_recalls, num_cats, num_area_rngs],
@@ -457,6 +470,10 @@ class LVISEval:
             'olrp_fn': olrp_fn,
             'olrp': olrp,
             'lrp_opt_thr': lrp_opt_thr,
+            'lrp_values': _lrps,
+            'dt_scores': _dt_scores,
+            'tps': _tps,
+            'fps': _fps,
         }
 
     def _summarize(self,
@@ -540,7 +557,11 @@ class LVISEval:
         self.results["oLRPr"] = self._summarize('oLRP', freq_group_idx=0)
         self.results["oLRPc"] = self._summarize('oLRP', freq_group_idx=1)
         self.results["oLRPf"] = self._summarize('oLRP', freq_group_idx=2)
-        self.results["LRP Opt Thr"] = self._summarize('LRP_thr')
+        self.results["lrp_opt_thr"] = self._summarize('LRP_thr')
+        self.results["lrp_values"] = self.eval['lrp_values']
+        self.results["dt_scores"] = self.eval['dt_scores']
+        self.results["tps"] = self.eval['tps']
+        self.results["fps"] = self.eval['fps']
 
     def run(self):
         """Wrapper function which calculates the results."""
@@ -548,7 +569,7 @@ class LVISEval:
         self.accumulate()
         self.summarize()
 
-    def print_results(self):
+    def print_results(self, file_path = None):
         template = " {:<18} {} @[ IoU={:<9} | area={:>6s} | " + \
             "maxDets={:>3d} catIds={:>3s}] = {:0.3f}"
 
@@ -591,9 +612,15 @@ class LVISEval:
             else:
                 area_rng = "all"
 
-            print(
-                template.format(title, _type, iou, area_rng, max_dets,
-                                cat_group_name, value))
+            if file_path:
+                with open(file_path, 'a') as out_file:
+                    out_file.write(template.format(title, _type, iou, area_rng, max_dets,
+                                    cat_group_name, value))
+                    out_file.write('\n')
+            else:
+                print(
+                    template.format(title, _type, iou, area_rng, max_dets,
+                                    cat_group_name, value))
 
     def print_lrp_opt_thresholds(self):
         np.set_printoptions(threshold=np.inf)
