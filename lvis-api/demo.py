@@ -24,24 +24,24 @@ params = lvis_eval.params
 params.max_dets = MAX_DETS  # No limit on detections per image.
 
 data_keys = ["lrp_values", "dt_scores", "tps", "fps", "lrp_opt_thr"]
-dataset = sys.argv[4]
-if dataset != "train" or dataset != "val":
+DATASET = sys.argv[4]
+if DATASET != "train" or DATASET != "val":
   print("Unknown dataset type")
   sys.exit(1)
 
 lvis_eval.run()
-lvis_eval.print_results(f"{dataset}_result_summary.txt")
+lvis_eval.print_results(f"{DATASET}_result_summary.txt")
 
 results = lvis_eval.get_results()
 for key in data_keys:
   values = results[key]
-  file_name = f"{dataset}_{key}"
+  file_name = f"{DATASET}_{key}"
   with open(file_name, 'wb') as out_file:
     pickle.dump(values, out_file)
 
-if dataset == "train":
+if DATASET == "train":
   lrp_opt_thrs = results["lrp_opt_thr"]
-  file_name = f"{dataset}_shift.py"
+  file_name = f"{DATASET}_shift.py"
   with open(file_name, 'w') as out_file:
     out_file.write("SHIFT=[")
     for lrp_opt_thr in lrp_opt_thrs:

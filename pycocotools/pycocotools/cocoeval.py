@@ -364,6 +364,11 @@ class COCOeval:
         olrp = -np.ones((K, A, M))
         lrp_opt_thr = -np.ones((K, A, M))
 
+        _lrps = {}
+        _dt_scores = {}
+        _tps = {}
+        _fps = {}
+
         # create dictionary for future indexing
         _pe = self._paramsEval
         catIds = _pe.catIds if _pe.useCats else [-1]
@@ -474,6 +479,10 @@ class COCOeval:
                                 (tp_num[opt_pos_idx] + fp_num[opt_pos_idx])
                             olrp_fn[k, a, m] = fn_num[opt_pos_idx] / npig
                             lrp_opt_thr[k, a, m] = dtScoresSorted[opt_pos_idx]
+                            _lrps[k, a, m] = lrps
+                            _dt_scores[k, a, m] = dtScoresSorted
+                            _tps[k, a, m] = tps
+                            _fps[k, a, m] = fps
                         # There is No TP
                         else:
                             olrp_loc[k, a, m] = np.nan
@@ -481,6 +490,10 @@ class COCOeval:
                             olrp_fn[k, a, m] = 1.
                             olrp[k, a, m] = 1.
                             lrp_opt_thr[k, a, m] = np.nan
+                            _lrps[k, a, m] = None
+                            _dt_scores[k, a, m] = None
+                            _tps[k, a, m] = None
+                            _fps[k, a, m] = None
                     # No detection
                     else:
                         olrp_loc[k, a, m] = np.nan
@@ -488,6 +501,10 @@ class COCOeval:
                         olrp_fn[k, a, m] = 1.
                         olrp[k, a, m] = 1.
                         lrp_opt_thr[k, a, m] = np.nan
+                        _lrps[k, a, m] = None
+                        _dt_scores[k, a, m] = None
+                        _tps[k, a, m] = None
+                        _fps[k, a, m] = None
         self.eval = {
             'params': p,
             'counts': [T, R, K, A, M],
@@ -500,6 +517,10 @@ class COCOeval:
             'olrp_fn': olrp_fn,
             'olrp': olrp,
             'lrp_opt_thr': lrp_opt_thr,
+            'lrp_values': _lrps,
+            'dt_scores': _dt_scores,
+            'tps': _tps,
+            'fps': _fps,
         }
         toc = time.time()
         print('DONE (t={:0.2f}s).'.format(toc - tic))
@@ -788,6 +809,15 @@ class COCOeval:
         elif iouType == 'keypoints':
             summarize = _summarizeKps
         self.stats = summarize()
+
+    def get_results(self):
+        results = {}
+        results["lrp_opt_thr"] = self._summarize(-1, iouThr=.5, areaRng='all', maxDets=self.params.maxDets[2], lrp_type='oLRP_thresholds')
+        results["lrp_values"] = self.eval['lrp_values']
+        results["dt_scores"] = self.eval['dt_scores']
+        results["tps"] = self.eval['tps']
+        results["fps"] = self.eval['fps']
+        return results
 
     def __str__(self):
         self.summarize()
