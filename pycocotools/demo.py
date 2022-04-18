@@ -13,8 +13,8 @@ RESULT_PATH = sys.argv[2]
 # Annotation type is segm or bbox
 ANN_TYPE = sys.argv[3]
 
-DATASET = sys.argv[4]
-if DATASET != "train" or DATASET != "val":
+DATASET_TYPE = sys.argv[4]
+if DATASET_TYPE != "train" and DATASET_TYPE != "val":
   print("Unknown dataset type")
   sys.exit(1)
 
@@ -41,13 +41,13 @@ data_keys = ["lrp_values", "dt_scores", "tps", "fps", "lrp_opt_thr"]
 results = cocoEval.get_results()
 for key in data_keys:
   values = results[key]
-  file_name = f"{DATASET}_{key}"
+  file_name = f"{DATASET_TYPE}_{key}"
   with open(file_name, 'wb') as out_file:
     pickle.dump(values, out_file)
 
-if DATASET == "train":
+if DATASET_TYPE == "train":
   lrp_opt_thrs = results["lrp_opt_thr"]
-  file_name = f"{DATASET}_shift.py"
+  file_name = f"{DATASET_TYPE}_shift.py"
   with open(file_name, 'w') as out_file:
     out_file.write("SHIFT=[")
     for lrp_opt_thr in lrp_opt_thrs:
