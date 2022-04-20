@@ -525,195 +525,192 @@ class COCOeval:
         toc = time.time()
         print('DONE (t={:0.2f}s).'.format(toc - tic))
 
+    def _summarize(self, ap=1, iouThr=None, areaRng='all', maxDets=100, lrp_type=None):
+        p = self.params
+        iStr = '{:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'  # noqa: E501
+        titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
+        typeStr = '(AP)' if ap == 1 else '(AR)'
+        iouStr = '{:0.2f}:{:0.2f}'.format(p.iouThrs[0], p.iouThrs[-1]) \
+            if iouThr is None else '{:0.2f}'.format(iouThr)
+
+        aind = [
+            i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng
+        ]
+        mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
+        if ap == 1:
+            # dimension of precision: [TxRxKxAxM]
+            s = self.eval['precision']
+            # IoU
+            if iouThr is not None:
+                t = np.where(iouThr == p.iouThrs)[0]
+                s = s[t]
+            s = s[:, :, :, aind, mind]
+            if len(s[s > -1]) == 0:
+                mean_s = -1
+            else:
+                mean_s = np.mean(s[s > -1])
+        elif ap == 0:
+            # dimension of recall: [TxKxAxM]
+            s = self.eval['recall']
+            if iouThr is not None:
+                t = np.where(iouThr == p.iouThrs)[0]
+                s = s[t]
+            s = s[:, :, aind, mind]
+        else:
+            # # dimension of LRP: [KxAxM]
+            # Person 0, Broccoli 50
+            if lrp_type == 'oLRP':
+                s = self.eval['olrp'][:, aind, mind]
+                titleStr = 'Optimal LRP'
+                typeStr = '    '
+            if lrp_type == 'oLRP_Localisation':
+                s = self.eval['olrp_loc'][:, aind, mind]
+                titleStr = 'Optimal LRP Loc'
+                typeStr = '    '
+            if lrp_type == 'oLRP_false_positive':
+                s = self.eval['olrp_fp'][:, aind, mind]
+                titleStr = 'Optimal LRP FP'
+                typeStr = '    '
+            if lrp_type == 'oLRP_false_negative':
+                s = self.eval['olrp_fn'][:, aind, mind]
+                titleStr = 'Optimal LRP FN'
+                typeStr = '    '
+            if lrp_type == 'oLRP_thresholds':
+                s = self.eval['lrp_opt_thr'][:, aind, mind].squeeze(axis=1)
+                titleStr = '# Class-specific LRP-Optimal Thresholds # \n'
+                typeStr = '    '
+                # Floor by using 3 decimal digits
+                print(titleStr, np.round(s - 0.5 * 10**(-3), 3))
+                return s
+        idx = (~np.isnan(s))
+        s = s[idx]
+        if len(s[s > -1]) == 0:
+            mean_s = -1
+        else:
+            mean_s = np.mean(s[s > -1])
+        print(
+            iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
+                        mean_s))
+        return mean_s
+
     def summarize(self):
         '''
         Compute and display summary metrics for evaluation results.
         Note this functin can *only* be applied on the default parameter
         setting
         '''
-        def _summarize(ap=1,
-                       iouThr=None,
-                       areaRng='all',
-                       maxDets=100,
-                       lrp_type=None):
-            p = self.params
-            iStr = '{:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'  # noqa: E501
-            titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
-            typeStr = '(AP)' if ap == 1 else '(AR)'
-            iouStr = '{:0.2f}:{:0.2f}'.format(p.iouThrs[0], p.iouThrs[-1]) \
-                if iouThr is None else '{:0.2f}'.format(iouThr)
-
-            aind = [
-                i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng
-            ]
-            mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
-            if ap == 1:
-                # dimension of precision: [TxRxKxAxM]
-                s = self.eval['precision']
-                # IoU
-                if iouThr is not None:
-                    t = np.where(iouThr == p.iouThrs)[0]
-                    s = s[t]
-                s = s[:, :, :, aind, mind]
-                if len(s[s > -1]) == 0:
-                    mean_s = -1
-                else:
-                    mean_s = np.mean(s[s > -1])
-            elif ap == 0:
-                # dimension of recall: [TxKxAxM]
-                s = self.eval['recall']
-                if iouThr is not None:
-                    t = np.where(iouThr == p.iouThrs)[0]
-                    s = s[t]
-                s = s[:, :, aind, mind]
-            else:
-                # # dimension of LRP: [KxAxM]
-                # Person 0, Broccoli 50
-                if lrp_type == 'oLRP':
-                    s = self.eval['olrp'][:, aind, mind]
-                    titleStr = 'Optimal LRP'
-                    typeStr = '    '
-                if lrp_type == 'oLRP_Localisation':
-                    s = self.eval['olrp_loc'][:, aind, mind]
-                    titleStr = 'Optimal LRP Loc'
-                    typeStr = '    '
-                if lrp_type == 'oLRP_false_positive':
-                    s = self.eval['olrp_fp'][:, aind, mind]
-                    titleStr = 'Optimal LRP FP'
-                    typeStr = '    '
-                if lrp_type == 'oLRP_false_negative':
-                    s = self.eval['olrp_fn'][:, aind, mind]
-                    titleStr = 'Optimal LRP FN'
-                    typeStr = '    '
-                if lrp_type == 'oLRP_thresholds':
-                    s = self.eval['lrp_opt_thr'][:, aind, mind].squeeze(axis=1)
-                    titleStr = '# Class-specific LRP-Optimal Thresholds # \n'
-                    typeStr = '    '
-                    # Floor by using 3 decimal digits
-                    print(titleStr, np.round(s - 0.5 * 10**(-3), 3))
-                    return s
-            idx = (~np.isnan(s))
-            s = s[idx]
-            if len(s[s > -1]) == 0:
-                mean_s = -1
-            else:
-                mean_s = np.mean(s[s > -1])
-            print(
-                iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
-                            mean_s))
-            return mean_s
 
         def _summarizeDets():
             stats = np.zeros((19, ))
-            stats[0] = _summarize(1)
-            stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
-            stats[2] = _summarize(1,
+            stats[0] = self._summarize(1)
+            stats[1] = self._summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
+            stats[2] = self._summarize(1,
                                   iouThr=.75,
                                   maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1,
+            stats[3] = self._summarize(1,
                                   areaRng='small',
                                   maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(1,
+            stats[4] = self._summarize(1,
                                   areaRng='medium',
                                   maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(1,
+            stats[5] = self._summarize(1,
                                   areaRng='large',
                                   maxDets=self.params.maxDets[2])
-            stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
-            stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
-            stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
-            stats[9] = _summarize(0,
+            stats[6] = self._summarize(0, maxDets=self.params.maxDets[0])
+            stats[7] = self._summarize(0, maxDets=self.params.maxDets[1])
+            stats[8] = self._summarize(0, maxDets=self.params.maxDets[2])
+            stats[9] = self._summarize(0,
                                   areaRng='small',
                                   maxDets=self.params.maxDets[2])
-            stats[10] = _summarize(0,
+            stats[10] = self._summarize(0,
                                    areaRng='medium',
                                    maxDets=self.params.maxDets[2])
-            stats[11] = _summarize(0,
+            stats[11] = self._summarize(0,
                                    areaRng='large',
                                    maxDets=self.params.maxDets[2])
-            stats[12] = _summarize(-1,
+            stats[12] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP')
-            stats[13] = _summarize(-1,
+            stats[13] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP_Localisation')
-            stats[14] = _summarize(-1,
+            stats[14] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP_false_positive')
-            stats[15] = _summarize(-1,
+            stats[15] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP_false_negative')
-            stats[16] = _summarize(-1,
+            stats[16] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='small',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP')
-            stats[17] = _summarize(-1,
+            stats[17] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='medium',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP')
-            stats[18] = _summarize(-1,
+            stats[18] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='large',
                                    maxDets=self.params.maxDets[2],
                                    lrp_type='oLRP')
             if self.params.lrp_size_details:
                 stats_lrp_size = np.zeros((9, ))
-                stats_lrp_size[0] = _summarize(-1,
+                stats_lrp_size[0] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_Localisation')
-                stats_lrp_size[1] = _summarize(-1,
+                stats_lrp_size[1] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_Localisation')
-                stats_lrp_size[2] = _summarize(-1,
+                stats_lrp_size[2] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_Localisation')
-                stats_lrp_size[3] = _summarize(-1,
+                stats_lrp_size[3] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_positive')
-                stats_lrp_size[4] = _summarize(-1,
+                stats_lrp_size[4] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_positive')
-                stats_lrp_size[5] = _summarize(-1,
+                stats_lrp_size[5] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_positive')
-                stats_lrp_size[6] = _summarize(-1,
+                stats_lrp_size[6] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_negative')
-                stats_lrp_size[7] = _summarize(-1,
+                stats_lrp_size[7] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_negative')
-                stats_lrp_size[8] = _summarize(-1,
+                stats_lrp_size[8] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
                                        lrp_type='oLRP_false_negative')
-            _summarize(-1,
+            self._summarize(-1,
                        iouThr=.5,
                        areaRng='all',
                        maxDets=self.params.maxDets[2],
@@ -722,79 +719,79 @@ class COCOeval:
 
         def _summarizeKps():
             stats = np.zeros((16, ))
-            stats[0] = _summarize(1, maxDets=20)
-            stats[1] = _summarize(1, maxDets=20, iouThr=.5)
-            stats[2] = _summarize(1, maxDets=20, iouThr=.75)
-            stats[3] = _summarize(1, maxDets=20, areaRng='medium')
-            stats[4] = _summarize(1, maxDets=20, areaRng='large')
-            stats[5] = _summarize(0, maxDets=20)
-            stats[6] = _summarize(0, maxDets=20, iouThr=.5)
-            stats[7] = _summarize(0, maxDets=20, iouThr=.75)
-            stats[8] = _summarize(0, maxDets=20, areaRng='medium')
-            stats[9] = _summarize(0, maxDets=20, areaRng='large')
-            stats[10] = _summarize(-1,
+            stats[0] = self._summarize(1, maxDets=20)
+            stats[1] = self._summarize(1, maxDets=20, iouThr=.5)
+            stats[2] = self._summarize(1, maxDets=20, iouThr=.75)
+            stats[3] = self._summarize(1, maxDets=20, areaRng='medium')
+            stats[4] = self._summarize(1, maxDets=20, areaRng='large')
+            stats[5] = self._summarize(0, maxDets=20)
+            stats[6] = self._summarize(0, maxDets=20, iouThr=.5)
+            stats[7] = self._summarize(0, maxDets=20, iouThr=.75)
+            stats[8] = self._summarize(0, maxDets=20, areaRng='medium')
+            stats[9] = self._summarize(0, maxDets=20, areaRng='large')
+            stats[10] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='all',
                                    lrp_type='oLRP')
-            stats[11] = _summarize(-1,
+            stats[11] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='all',
                                    lrp_type='oLRP_Localisation')
-            stats[12] = _summarize(-1,
+            stats[12] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='all',
                                    lrp_type='oLRP_false_positive')
-            stats[13] = _summarize(-1,
+            stats[13] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='all',
                                    lrp_type='oLRP_false_negative')
-            stats[14] = _summarize(-1,
+            stats[14] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='medium',
                                    lrp_type='oLRP')
-            stats[15] = _summarize(-1,
+            stats[15] = self._summarize(-1,
                                    maxDets=20,
                                    iouThr=.5,
                                    areaRng='large',
                                    lrp_type='oLRP')
             if self.params.lrp_size_details:
                 stats_lrp_size = np.zeros((6, ))
-                stats_lrp_size[0] = _summarize(-1,
+                stats_lrp_size[0] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='medium',
                                        lrp_type='oLRP_Localisation')
-                stats_lrp_size[1] = _summarize(-1,
+                stats_lrp_size[1] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='large',
                                        lrp_type='oLRP_Localisation')
-                stats_lrp_size[2] = _summarize(-1,
+                stats_lrp_size[2] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='medium',
                                        lrp_type='oLRP_false_positive')
-                stats_lrp_size[3] = _summarize(-1,
+                stats_lrp_size[3] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='large',
                                        lrp_type='oLRP_false_positive')
-                stats_lrp_size[4] = _summarize(-1,
+                stats_lrp_size[4] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='medium',
                                        lrp_type='oLRP_false_negative')
-                stats_lrp_size[5] = _summarize(-1,
+                stats_lrp_size[5] = self._summarize(-1,
                                        maxDets=20,
                                        iouThr=.5,
                                        areaRng='large',
                                        lrp_type='oLRP_false_negative')
-            _summarize(-1,
+            self._summarize(-1,
                        iouThr=.5,
                        areaRng='all',
                        maxDets=20,

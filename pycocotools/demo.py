@@ -1,5 +1,6 @@
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+from src.coco import COCO
+from src.cocoeval import COCOeval
+
 import sys
 import pickle
 import numpy as np
