@@ -525,7 +525,7 @@ class COCOeval:
         toc = time.time()
         print('DONE (t={:0.2f}s).'.format(toc - tic))
 
-    def _summarize(self, ap=1, iouThr=None, areaRng='all', maxDets=100, lrp_type=None):
+    def _summarize(self, ap=1, iouThr=None, areaRng='all', maxDets=100, lrp_type=None, file_path=None):
         p = self.params
         iStr = '{:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'  # noqa: E501
         titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
@@ -588,133 +588,140 @@ class COCOeval:
             mean_s = -1
         else:
             mean_s = np.mean(s[s > -1])
-        print(
-            iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
-                        mean_s))
+
+        if file_path:
+            with open(file_path, 'a') as out_file:
+                out_file.write(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
+                            mean_s))
+                out_file.write('\n')
+        else:
+            print(
+                iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
+                            mean_s))
         return mean_s
 
-    def summarize(self):
+    def summarize(self, file_path=None):
         '''
         Compute and display summary metrics for evaluation results.
         Note this functin can *only* be applied on the default parameter
         setting
         '''
 
-        def _summarizeDets():
+        def _summarizeDets(file_path=None):
             stats = np.zeros((19, ))
-            stats[0] = self._summarize(1)
-            stats[1] = self._summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
+            stats[0] = self._summarize(1, file_path=file_path)
+            stats[1] = self._summarize(1, iouThr=.5, maxDets=self.params.maxDets[2], file_path=file_path)
             stats[2] = self._summarize(1,
                                   iouThr=.75,
-                                  maxDets=self.params.maxDets[2])
+                                  maxDets=self.params.maxDets[2], file_path=file_path)
             stats[3] = self._summarize(1,
                                   areaRng='small',
-                                  maxDets=self.params.maxDets[2])
+                                  maxDets=self.params.maxDets[2], file_path=file_path)
             stats[4] = self._summarize(1,
                                   areaRng='medium',
-                                  maxDets=self.params.maxDets[2])
+                                  maxDets=self.params.maxDets[2], file_path=file_path)
             stats[5] = self._summarize(1,
                                   areaRng='large',
-                                  maxDets=self.params.maxDets[2])
-            stats[6] = self._summarize(0, maxDets=self.params.maxDets[0])
-            stats[7] = self._summarize(0, maxDets=self.params.maxDets[1])
-            stats[8] = self._summarize(0, maxDets=self.params.maxDets[2])
+                                  maxDets=self.params.maxDets[2], file_path=file_path)
+            stats[6] = self._summarize(0, maxDets=self.params.maxDets[0], file_path=file_path)
+            stats[7] = self._summarize(0, maxDets=self.params.maxDets[1], file_path=file_path)
+            stats[8] = self._summarize(0, maxDets=self.params.maxDets[2], file_path=file_path)
             stats[9] = self._summarize(0,
                                   areaRng='small',
-                                  maxDets=self.params.maxDets[2])
+                                  maxDets=self.params.maxDets[2], file_path=file_path)
             stats[10] = self._summarize(0,
                                    areaRng='medium',
-                                   maxDets=self.params.maxDets[2])
+                                   maxDets=self.params.maxDets[2], file_path=file_path)
             stats[11] = self._summarize(0,
                                    areaRng='large',
-                                   maxDets=self.params.maxDets[2])
+                                   maxDets=self.params.maxDets[2], file_path=file_path)
             stats[12] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP')
+                                   lrp_type='oLRP', file_path=file_path)
             stats[13] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP_Localisation')
+                                   lrp_type='oLRP_Localisation', file_path=file_path)
             stats[14] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP_false_positive')
+                                   lrp_type='oLRP_false_positive', file_path=file_path)
             stats[15] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='all',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP_false_negative')
+                                   lrp_type='oLRP_false_negative', file_path=file_path)
             stats[16] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='small',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP')
+                                   lrp_type='oLRP', file_path=file_path)
             stats[17] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='medium',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP')
+                                   lrp_type='oLRP', file_path=file_path)
             stats[18] = self._summarize(-1,
                                    iouThr=.5,
                                    areaRng='large',
                                    maxDets=self.params.maxDets[2],
-                                   lrp_type='oLRP')
+                                   lrp_type='oLRP', file_path=file_path)
             if self.params.lrp_size_details:
                 stats_lrp_size = np.zeros((9, ))
                 stats_lrp_size[0] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_Localisation')
+                                       lrp_type='oLRP_Localisation', file_path=file_path)
                 stats_lrp_size[1] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_Localisation')
+                                       lrp_type='oLRP_Localisation', file_path=file_path)
                 stats_lrp_size[2] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_Localisation')
+                                       lrp_type='oLRP_Localisation', file_path=file_path)
                 stats_lrp_size[3] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_positive')
+                                       lrp_type='oLRP_false_positive', file_path=file_path)
                 stats_lrp_size[4] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_positive')
+                                       lrp_type='oLRP_false_positive', file_path=file_path)
                 stats_lrp_size[5] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_positive')
+                                       lrp_type='oLRP_false_positive', file_path=file_path)
                 stats_lrp_size[6] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='small',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_negative')
+                                       lrp_type='oLRP_false_negative', file_path=file_path)
                 stats_lrp_size[7] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='medium',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_negative')
+                                       lrp_type='oLRP_false_negative', file_path=file_path)
                 stats_lrp_size[8] = self._summarize(-1,
                                        iouThr=.5,
                                        areaRng='large',
                                        maxDets=self.params.maxDets[2],
-                                       lrp_type='oLRP_false_negative')
+                                       lrp_type='oLRP_false_negative', file_path=file_path)
             self._summarize(-1,
                        iouThr=.5,
                        areaRng='all',
                        maxDets=self.params.maxDets[2],
-                       lrp_type='oLRP_thresholds')
+                       lrp_type='oLRP_thresholds', file_path=file_path)
             return stats
 
         def _summarizeKps():
@@ -805,7 +812,7 @@ class COCOeval:
             summarize = _summarizeDets
         elif iouType == 'keypoints':
             summarize = _summarizeKps
-        self.stats = summarize()
+        self.stats = summarize(file_path)
 
     def get_results(self):
         results = {}

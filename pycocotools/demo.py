@@ -36,7 +36,7 @@ cocoEval = COCOeval(cocoGt, cocoDt, ANN_TYPE, print_lrp_components_over_size)
 cocoEval.params.imgIds = imgIds
 cocoEval.evaluate()
 cocoEval.accumulate()
-cocoEval.summarize()
+cocoEval.summarize(f"{DATASET_TYPE}_result_summary.txt")
 
 data_keys = ["lrp_values", "dt_scores", "tps", "fps", "lrp_opt_thr"]
 results = cocoEval.get_results()
