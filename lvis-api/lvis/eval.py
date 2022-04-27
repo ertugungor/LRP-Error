@@ -319,6 +319,7 @@ class LVISEval:
         lrp_opt_thr = -np.ones((num_cats, num_area_rngs))
         _lrps = {}
         _dt_scores = {}
+        _dt_m = {}
         _tps = {}
         _fps = {}
         # Initialize dt_pointers
@@ -427,6 +428,7 @@ class LVISEval:
                         lrps = (total_loc / (1 - self.params.iou_thrs[0]) + fp_num + fn_num) / (tp_num + fp_num + fn_num)
                         _lrps[cat_idx, area_idx] = lrps
                         _dt_scores[cat_idx, area_idx] = dt_scores
+                        _dt_m[cat_idx, area_idx] = dt_m
                         _tps[cat_idx, area_idx] = tps
                         _fps[cat_idx, area_idx] = fps
                         # print(f"Shape of lrps: {lrps.shape}")
@@ -440,6 +442,7 @@ class LVISEval:
                     else:
                         _lrps[cat_idx, area_idx] = None
                         _dt_scores[cat_idx, area_idx] = None
+                        _dt_m[cat_idx, area_idx] = None
                         _tps[cat_idx, area_idx] = None
                         _fps[cat_idx, area_idx] = None
                         olrp_loc[cat_idx, area_idx] = np.nan
@@ -456,6 +459,7 @@ class LVISEval:
                     lrp_opt_thr[cat_idx, area_idx] = np.nan
                     _lrps[cat_idx, area_idx] = None
                     _dt_scores[cat_idx, area_idx] = None
+                    _dt_m[cat_idx, area_idx] = None
                     _tps[cat_idx, area_idx] = None
                     _fps[cat_idx, area_idx] = None
         self.eval = {
@@ -472,6 +476,7 @@ class LVISEval:
             'lrp_opt_thr': lrp_opt_thr,
             'lrp_values': _lrps,
             'dt_scores': _dt_scores,
+            'dt_m': _dt_m,
             'tps': _tps,
             'fps': _fps,
         }
@@ -560,6 +565,7 @@ class LVISEval:
         self.results["lrp_opt_thr"] = self._summarize('LRP_thr')
         self.results["lrp_values"] = self.eval['lrp_values']
         self.results["dt_scores"] = self.eval['dt_scores']
+        self.results["dt_m"] = self.eval['dt_m']
         self.results["tps"] = self.eval['tps']
         self.results["fps"] = self.eval['fps']
 

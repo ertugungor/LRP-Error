@@ -23,7 +23,7 @@ lvis_eval = LVISEval(gt, results, iou_type=ANN_TYPE)
 params = lvis_eval.params
 params.max_dets = MAX_DETS  # No limit on detections per image.
 
-data_keys = ["lrp_values", "dt_scores", "tps", "fps", "lrp_opt_thr"]
+data_keys = ["lrp_values", "dt_scores", "dt_m", "tps", "fps", "lrp_opt_thr"]
 DATASET = sys.argv[4]
 if DATASET != "train" or DATASET != "val":
   print("Unknown dataset type")
