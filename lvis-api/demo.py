@@ -25,9 +25,14 @@ params.max_dets = MAX_DETS  # No limit on detections per image.
 
 data_keys = ["lrp_values", "dt_scores", "dt_m", "tps", "fps", "lrp_opt_thr"]
 DATASET = sys.argv[4]
-if DATASET != "train" or DATASET != "val":
+if DATASET != "train" and DATASET != "val":
   print("Unknown dataset type")
   sys.exit(1)
+
+# lvis_eval.debug()
+# lvis_eval._prepare()
+# exit(1)
+# data_keys = ["cat_total_score", "cat_num_det", "avg_scores"]
 
 lvis_eval.run()
 lvis_eval.print_results(f"{DATASET}_result_summary.txt")
@@ -39,13 +44,21 @@ for key in data_keys:
   with open(file_name, 'wb') as out_file:
     pickle.dump(values, out_file)
 
-if DATASET == "train":
+alpha = 0.8
+# if DATASET == "train":
+if DATASET == "val":
   lrp_opt_thrs = results["lrp_opt_thr"]
   file_name = f"{DATASET}_shift.py"
   with open(file_name, 'w') as out_file:
     out_file.write("SHIFT=[")
     for lrp_opt_thr in lrp_opt_thrs:
-      val = 0 if np.isnan(lrp_opt_thr) else lrp_opt_thr
-      val = 0.5-val
+      # val = 0 if np.isnan(lrp_opt_thr) else lrp_opt_thr
+      # new algorithm:
+      # conf_score = conf_score + alpha * (0.50 - LRP_optimal_threshold) 
+      if np.isnan(lrp_opt_thr) or lrp_opt_thr == -1:
+        val = 0
+      else:
+        val = lrp_opt_thr
+      val = alpha * (0.5-val)
       out_file.write(f"{round(val,3)},")
     out_file.write("0]\n\n") # last 0 is for background class

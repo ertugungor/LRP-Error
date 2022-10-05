@@ -1,5 +1,6 @@
 __author__ = 'tsungyi'
 
+from ast import Return
 import copy
 import datetime
 import time
@@ -83,6 +84,7 @@ class COCOeval:
         if cocoGt is not None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
+            print(self.params.catIds)
 
     def _prepare(self):
         '''
@@ -124,6 +126,56 @@ class COCOeval:
         self.evalImgs = defaultdict(
             list)  # per-image per-category evaluation results
         self.eval = {}  # accumulated evaluation results
+        self.categorize_gt()
+
+    def categorize_gt(self):
+        cat_id_set = set(self.params.catIds)
+        self.cat_id_to_idx = {cat_id:idx for idx, cat_id in enumerate(self.params.catIds) if cat_id in cat_id_set}
+        print(self.cat_id_to_idx)
+        # uses frequency groups calculated in coco train (custom style, 1000 | 2500 | more)
+        # freq_group_cat_id = {'rare': [80, 14, 89, 23, 87], 'common': [21, 74, 76, 82, 55, 78, 13, 53, 56, 22, 88, 90, 11, 60, 52, 20, 24, 36, 33, 34, 58, 57, 54, 38], 'frequent': [4, 1, 2, 49, 61, 81, 28, 72, 17, 44, 64, 85, 50, 51, 79, 31, 46, 67, 47, 27, 84, 48, 70, 7, 62, 73, 15, 86, 41, 8, 9, 16, 77, 3, 18, 10, 6, 5, 32, 42, 19, 75, 25, 63, 65, 37, 39, 40, 35, 59, 43]}
+
+        # uses frequency groups calculated in coco_subset train (lvis style, 10 | 100 | more)
+        freq_group_cat_id = {'rare': [49, 74, 44, 50, 51, 31, 46, 47, 27, 84, 80, 48, 62, 41, 32, 42, 36, 63, 37, 89, 34, 39, 40, 35, 43], 'common': [2, 61, 28, 76, 72, 64, 82, 55, 79, 67, 78, 73, 53, 90, 77, 3, 6, 14, 60, 75, 33, 58, 57, 54, 38, 87], 'frequent': [4, 1, 81, 21, 17, 85, 70, 7, 13, 15, 86, 56, 8, 9, 22, 88, 16, 11, 18, 10, 5, 52, 19, 25, 20, 24, 65, 23, 59]}
+
+        self.cat_idx_freq_group = {}
+        print(f"cat_id_to_idx: {self.cat_id_to_idx}")
+        # precalculated frequency group data for coco_subset
+        print(f"freq_group_cat_id: {freq_group_cat_id}")
+        self.freq_group_cat_idx = {"rare":[], "common":[], "frequent":[]}
+        for freq_group, cat_id_list in freq_group_cat_id.items():
+            for cat_id in cat_id_list:
+                self.freq_group_cat_idx[freq_group].append(self.cat_id_to_idx[cat_id])
+                self.cat_idx_freq_group[self.cat_id_to_idx[cat_id]] = freq_group
+        print(f"self.freq_group_cat_idx: {self.freq_group_cat_idx}")
+        print(f"self.cat_idx_freq_group: {self.cat_idx_freq_group}")
+        return
+
+        # cat_id_img_ids = defaultdict(set)
+        # for key in self._gts.keys():
+        #     img_id, cat_id = key
+        #     cat_id_img_ids[cat_id].add(img_id)
+        # self.freq_group_cat_idx =  {"rare":[], "common":[], "frequent":[]}
+        # cat_group_count = {"rare":0, "common":0, "frequent":0}
+        # total_img_count = 0
+        # for cat_id, img_ids in cat_id_img_ids.items():
+        #     print(f"cat_id: {cat_id} || freq: {len(img_ids)}")
+        #     total_img_count += len(img_ids)
+        #     if len(img_ids) <= 1000:
+        #         self.freq_group_cat_idx["rare"].append(self.cat_id_to_idx[cat_id])
+        #         cat_group_count["rare"] += 1
+        #     elif len(img_ids) <= 2500:
+        #         self.freq_group_cat_idx["common"].append(self.cat_id_to_idx[cat_id])
+        #         cat_group_count["common"] += 1
+        #     else:
+        #         self.freq_group_cat_idx["frequent"].append(self.cat_id_to_idx[cat_id])
+        #         cat_group_count["frequent"] += 1
+        # print(f"cat_group_count: {cat_group_count}")
+        # print()
+        # print(f"self.freq_group_cat_idx: {self.freq_group_cat_idx}")
+        # print()
+        # print(f"total_img_count: {total_img_count}")
+        # exit(0)
 
     def evaluate(self):
         '''
@@ -491,9 +543,9 @@ class COCOeval:
                             olrp[k, a, m] = 1.
                             lrp_opt_thr[k, a, m] = np.nan
                             _lrps[k, a, m] = None
-                            _dt_scores[k, a, m] = None
-                            _tps[k, a, m] = None
-                            _fps[k, a, m] = None
+                            _dt_scores[k, a, m] = dtScoresSorted
+                            _tps[k, a, m] = tps
+                            _fps[k, a, m] = fps
                     # No detection
                     else:
                         olrp_loc[k, a, m] = np.nan
@@ -525,7 +577,7 @@ class COCOeval:
         toc = time.time()
         print('DONE (t={:0.2f}s).'.format(toc - tic))
 
-    def _summarize(self, ap=1, iouThr=None, areaRng='all', maxDets=100, lrp_type=None, file_path=None):
+    def _summarize(self, ap=1, iouThr=None, areaRng='all', maxDets=100, lrp_type=None, file_path=None, freq_group_name=None):
         p = self.params
         iStr = '{:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'  # noqa: E501
         titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
@@ -544,6 +596,8 @@ class COCOeval:
             if iouThr is not None:
                 t = np.where(iouThr == p.iouThrs)[0]
                 s = s[t]
+            if freq_group_name is not None:
+                s = s[:, :, self.freq_group_cat_idx[freq_group_name], :, :]
             s = s[:, :, :, aind, mind]
             if len(s[s > -1]) == 0:
                 mean_s = -1
@@ -589,15 +643,17 @@ class COCOeval:
         else:
             mean_s = np.mean(s[s > -1])
 
+        if freq_group_name is not None:
+            iStr += ' ({})'
+            formatted_info = iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s, freq_group_name)
+        else:
+            formatted_info = iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s)
         if file_path:
             with open(file_path, 'a') as out_file:
-                out_file.write(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
-                            mean_s))
+                out_file.write(formatted_info)
                 out_file.write('\n')
         else:
-            print(
-                iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets,
-                            mean_s))
+            print(formatted_info)
         return mean_s
 
     def summarize(self, file_path=None):
@@ -609,6 +665,7 @@ class COCOeval:
 
         def _summarizeDets(file_path=None):
             stats = np.zeros((19, ))
+            # stats[0] = self._summarize(1, file_path=file_path, maxDets=self.params.maxDets[1])
             stats[0] = self._summarize(1, file_path=file_path)
             stats[1] = self._summarize(1, iouThr=.5, maxDets=self.params.maxDets[2], file_path=file_path)
             stats[2] = self._summarize(1,
@@ -722,6 +779,24 @@ class COCOeval:
                        areaRng='all',
                        maxDets=self.params.maxDets[2],
                        lrp_type='oLRP_thresholds', file_path=file_path)
+            self._summarize(1,
+                            areaRng='all',
+                            maxDets=100,
+                            # maxDets=self.params.maxDets[1],
+                            file_path=file_path,
+                            freq_group_name="rare")
+            self._summarize(1,
+                            areaRng='all',
+                            maxDets=100,
+                            # maxDets=self.params.maxDets[1],
+                            file_path=file_path,
+                            freq_group_name="common")
+            self._summarize(1,
+                            areaRng='all',
+                            maxDets=100,
+                            # maxDets=self.params.maxDets[1],
+                            file_path=file_path,
+                            freq_group_name="frequent")
             return stats
 
         def _summarizeKps():
